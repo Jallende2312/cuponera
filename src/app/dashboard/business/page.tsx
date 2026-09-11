@@ -5,7 +5,8 @@ import { collection, query, where, getDocs, addDoc, updateDoc, doc } from "fireb
 import { db } from "@/lib/firebase/config";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter } from "next/navigation";
-import { Plus, Edit2, ArrowLeft, X, Image as ImageIcon, Loader2, Share2, BarChart3, Ticket, CheckCircle } from "lucide-react";
+import { Plus, Edit2, ArrowLeft, X, Image as ImageIcon, Loader2, Share2, BarChart3, Ticket, CheckCircle, QrCode } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 interface Promotion {
   id: string;
@@ -28,6 +29,7 @@ export default function BusinessDashboard() {
   const [stats, setStats] = useState({ totalClaimed: 0, totalRedeemed: 0 });
   
   const [showModal, setShowModal] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
   const [editingPromo, setEditingPromo] = useState<Promotion | null>(null);
   
   // Modal state
@@ -242,7 +244,15 @@ export default function BusinessDashboard() {
                 Estadísticas
               </button>
             </div>
-            <div className="flex items-center w-20"></div>
+            <div className="flex items-center">
+              <button
+                onClick={() => setShowQrModal(true)}
+                className="flex items-center text-sm font-medium text-blue-600 bg-blue-50 px-3 py-2 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                <QrCode className="w-4 h-4 mr-2" />
+                Mi QR
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -458,6 +468,41 @@ export default function BusinessDashboard() {
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* QR Modal del Negocio */}
+      {showQrModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowQrModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm p-8 text-center shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900">QR de mi Negocio</h2>
+              <button onClick={() => setShowQrModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <p className="text-gray-500 text-sm mb-6">Muestra este código a tus clientes para que guarden tus promociones.</p>
+            
+            <div className="bg-white p-4 rounded-xl shadow-inner border border-gray-100 inline-block mb-6">
+              <QRCodeSVG 
+                value={typeof window !== "undefined" ? window.location.origin : "https://cuponera-o2o.vercel.app"} 
+                size={200}
+                level="H"
+                includeMargin={false}
+              />
+            </div>
+            
+            <button
+              onClick={() => {
+                const link = typeof window !== "undefined" ? window.location.origin : "https://cuponera-o2o.vercel.app";
+                navigator.clipboard.writeText(link);
+                alert("¡Enlace copiado!");
+              }}
+              className="w-full py-3 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium rounded-lg transition-colors flex justify-center items-center"
+            >
+              <Share2 className="w-4 h-4 mr-2" /> Copiar Enlace Directo
+            </button>
           </div>
         </div>
       )}
