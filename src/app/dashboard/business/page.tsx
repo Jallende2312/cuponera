@@ -444,7 +444,7 @@ function DashboardContent() {
 
               {/* Popular Promos List */}
               <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex flex-col">
-                <h3 className="text-lg font-bold text-gray-900 mb-6">Anuncios Populares</h3>
+                <h3 className="text-lg font-bold text-gray-900 mb-6">Promociones Populares</h3>
                 <div className="space-y-6 overflow-y-auto pr-2 flex-grow">
                   {promotions.slice().sort((a, b) => b.claimed - a.claimed).slice(0, 4).map(promo => {
                     const percentage = Math.round((promo.claimed / promo.limit) * 100);
@@ -465,7 +465,7 @@ function DashboardContent() {
                   })}
                   {promotions.length === 0 && (
                     <div className="text-center text-gray-500 py-10 text-sm">
-                      Aún no hay anuncios.
+                      Aún no hay promociones.
                     </div>
                   )}
                 </div>
