@@ -95,9 +95,10 @@ export default function BusinessDashboard() {
   const uploadImage = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "");
+    // Usamos el preset y cloud name públicos directamente para evitar configuración manual en Vercel
+    formData.append("upload_preset", "vitrinas_public");
     
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const cloudName = "n3pool8h";
     const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
       method: "POST",
       body: formData,
