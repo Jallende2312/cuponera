@@ -233,7 +233,7 @@ export default function BusinessDashboard() {
                   activeTab === "vitrina" ? "text-blue-600 border-blue-600" : "text-gray-500 border-transparent hover:text-gray-700"
                 }`}
               >
-                Mi Vitrina
+                Mis Promociones
               </button>
               <button
                 onClick={() => setActiveTab("estadisticas")}
