@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, Suspense } from "react";
-import { collection, query, where, getDocs, addDoc, updateDoc, doc } from "firebase/firestore";
+import { collection, query, where, getDocs, getDoc, addDoc, updateDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -34,6 +34,7 @@ function DashboardContent() {
   
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [stats, setStats] = useState({ totalClaimed: 0, totalRedeemed: 0 });
+  const [businessSlug, setBusinessSlug] = useState<string>("");
   
   const [showModal, setShowModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
@@ -63,6 +64,12 @@ function DashboardContent() {
   const fetchPromotionsAndStats = async () => {
     if (!currentBusinessId) return;
     try {
+      // Fetch user profile to get slug
+      const userDoc = await getDoc(doc(db, "users", currentBusinessId));
+      if (userDoc.exists()) {
+        setBusinessSlug(userDoc.data().slug || "");
+      }
+
       const q = query(collection(db, "promotions"), where("businessId", "==", currentBusinessId));
       const querySnapshot = await getDocs(q);
       const promos: Promotion[] = [];
@@ -196,8 +203,7 @@ function DashboardContent() {
 
   const handleShare = (e: React.MouseEvent, promo: Promotion) => {
     e.stopPropagation();
-    // In the future we can point to `/promo/${promo.id}`, but for MVP we share the root
-    const shareUrl = window.location.origin;
+    const shareUrl = `${window.location.origin}/local/${businessSlug}`;
     const shareText = `¡Aprovecha esta promoción: ${promo.title}! Ven y guarda tu cupón antes de que se acaben.`;
 
     if (navigator.share) {
@@ -493,7 +499,7 @@ function DashboardContent() {
             
             <div className="bg-white p-4 rounded-xl shadow-inner border border-gray-100 inline-block mb-6">
               <QRCodeSVG 
-                value={typeof window !== "undefined" ? window.location.origin : "https://cuponera-o2o.vercel.app"} 
+                value={typeof window !== "undefined" ? `${window.location.origin}/local/${businessSlug}` : "https://cuponera-o2o.vercel.app"} 
                 size={200}
                 level="H"
                 includeMargin={false}
@@ -502,7 +508,7 @@ function DashboardContent() {
             
             <button
               onClick={() => {
-                const link = typeof window !== "undefined" ? window.location.origin : "https://cuponera-o2o.vercel.app";
+                const link = typeof window !== "undefined" ? `${window.location.origin}/local/${businessSlug}` : "https://cuponera-o2o.vercel.app";
                 navigator.clipboard.writeText(link);
                 alert("¡Enlace copiado!");
               }}
