@@ -62,9 +62,8 @@ export default function AdminDashboard() {
     }
   }, [authLoading, role]);
 
-  const handleImpersonate = async (businessId: string) => {
-    alert("¡Entrando al panel en Modo Dios!");
-    console.log("Impersonate", businessId);
+  const handleImpersonate = (businessId: string) => {
+    router.push(`/dashboard/business?impersonate=${businessId}`);
   };
 
   const handleCreateAgency = async (e: React.FormEvent) => {

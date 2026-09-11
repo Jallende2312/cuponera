@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { collection, query, where, getDocs, addDoc, updateDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { useAuthStore } from "@/store/useAuthStore";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Edit2, ArrowLeft, X, Image as ImageIcon, Loader2, Share2, BarChart3, Ticket, CheckCircle, QrCode } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -19,9 +19,16 @@ interface Promotion {
   imageUrl?: string;
 }
 
-export default function BusinessDashboard() {
-  const { user, role, loading } = useAuthStore();
+// The main dashboard content that uses search params
+function DashboardContent() {
+  const { user, role, loading: authLoading } = useAuthStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Si el admin está impersonando a un negocio, usamos el ID de la URL
+  const impersonateId = searchParams.get("impersonate");
+  const isImpersonating = role === "admin" && impersonateId;
+  const currentBusinessId = isImpersonating ? impersonateId : user?.uid;
   
   const [activeTab, setActiveTab] = useState<"vitrina" | "estadisticas">("vitrina");
   
@@ -42,21 +49,21 @@ export default function BusinessDashboard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!loading) {
-      if (!user) {
+    if (!authLoading) {
+      if (!user && !isImpersonating) {
         router.push("/login");
-      } else if (role !== "business") {
+      } else if (role !== "business" && !isImpersonating) {
         router.push("/");
-      } else {
+      } else if (currentBusinessId) {
         fetchPromotionsAndStats();
       }
     }
-  }, [user, role, loading, router]);
+  }, [user, role, authLoading, router, isImpersonating, currentBusinessId]);
 
   const fetchPromotionsAndStats = async () => {
-    if (!user) return;
+    if (!currentBusinessId) return;
     try {
-      const q = query(collection(db, "promotions"), where("businessId", "==", user.uid));
+      const q = query(collection(db, "promotions"), where("businessId", "==", currentBusinessId));
       const querySnapshot = await getDocs(q);
       const promos: Promotion[] = [];
       
@@ -154,7 +161,7 @@ export default function BusinessDashboard() {
         });
       } else {
         await addDoc(collection(db, "promotions"), {
-          businessId: user.uid,
+          businessId: currentBusinessId,
           title,
           description,
           imageUrl: finalImageUrl,
@@ -205,7 +212,7 @@ export default function BusinessDashboard() {
     }
   };
 
-  if (loading || !user || role !== "business") {
+  if (authLoading || !user || (role !== "business" && !isImpersonating)) {
     return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
   }
 
@@ -507,5 +514,13 @@ export default function BusinessDashboard() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function BusinessDashboard() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Cargando panel...</div>}>
+      <DashboardContent />
+    </Suspense>
   );
 }
