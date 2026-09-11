@@ -73,6 +73,20 @@ export default function Home() {
     }
 
     try {
+      // 1. Check if user already claimed this specific promotion
+      const existingCouponQuery = query(
+        collection(db, "coupons"), 
+        where("promotionId", "==", promo.id), 
+        where("userId", "==", currentUid)
+      );
+      const existingSnap = await getDocs(existingCouponQuery);
+      
+      if (!existingSnap.empty) {
+        alert("¡Ya tienes este cupón! Te llevaremos a tu Billetera para que lo uses.");
+        router.push("/dashboard/customer");
+        return;
+      }
+
       // Create a unique coupon code
       const couponCode = `CPN-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
       
