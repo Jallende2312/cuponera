@@ -34,7 +34,8 @@ export default function AdminDashboard() {
     slug: "",
     email: "",
     password: "",
-    pin: ""
+    pin: "",
+    logoUrl: ""
   });
   const [creating, setCreating] = useState(false);
 
@@ -85,6 +86,7 @@ export default function AdminDashboard() {
         businessName: newAgency.businessName,
         slug: newAgency.slug,
         pin: newAgency.pin,
+        logoUrl: newAgency.logoUrl,
         status: "Activo",
         createdAt: new Date().toISOString()
       };
@@ -93,7 +95,7 @@ export default function AdminDashboard() {
       
       setBusinesses([{ id: newUid, ...newBizData } as BusinessUser, ...businesses]);
       setShowModal(false);
-      setNewAgency({ businessName: "", slug: "", email: "", password: "", pin: "" });
+      setNewAgency({ businessName: "", slug: "", email: "", password: "", pin: "", logoUrl: "" });
       alert("¡Agencia creada con éxito!");
     } catch (error: any) {
       console.error("Error creating agency", error);
@@ -188,6 +190,15 @@ export default function AdminDashboard() {
                   type="text" required 
                   className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   value={newAgency.businessName} onChange={e => setNewAgency({...newAgency, businessName: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Logo del Negocio (URL Opcional)</label>
+                <input 
+                  type="url" 
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="https://ejemplo.com/logo.png"
+                  value={newAgency.logoUrl} onChange={e => setNewAgency({...newAgency, logoUrl: e.target.value})}
                 />
               </div>
               <div>

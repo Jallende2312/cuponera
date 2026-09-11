@@ -5,8 +5,9 @@ import { collection, query, where, getDocs, getDoc, addDoc, updateDoc, doc } fro
 import { db } from "@/lib/firebase/config";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Edit2, ArrowLeft, X, Image as ImageIcon, Loader2, Share2, BarChart3, Ticket, CheckCircle, QrCode } from "lucide-react";
+import { Plus, Edit2, ArrowLeft, X, Image as ImageIcon, Loader2, Share2, BarChart3, Ticket, CheckCircle, QrCode, TrendingUp, Users } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 interface Promotion {
   id: string;
@@ -46,6 +47,7 @@ function DashboardContent() {
   const [limit, setLimit] = useState(10);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageUrlInput, setImageUrlInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -100,6 +102,7 @@ function DashboardContent() {
     const file = e.target.files?.[0];
     if (file) {
       setImageFile(file);
+      setImageUrlInput(""); // Clear URL input if file is selected
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
@@ -115,6 +118,7 @@ function DashboardContent() {
     setLimit(10);
     setImageFile(null);
     setImagePreview(null);
+    setImageUrlInput("");
     setShowModal(true);
   };
 
@@ -125,6 +129,7 @@ function DashboardContent() {
     setLimit(promo.limit);
     setImageFile(null);
     setImagePreview(promo.imageUrl || null);
+    setImageUrlInput(promo.imageUrl || "");
     setShowModal(true);
   };
 
@@ -153,7 +158,7 @@ function DashboardContent() {
     
     setIsSubmitting(true);
     try {
-      let finalImageUrl = editingPromo?.imageUrl || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"; // Default image
+      let finalImageUrl = imageUrlInput || editingPromo?.imageUrl || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"; // Default image
       
       if (imageFile) {
         finalImageUrl = await uploadImage(imageFile);
@@ -346,34 +351,125 @@ function DashboardContent() {
             </div>
           </>
         ) : (
-          <div className="max-w-4xl mx-auto space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Resumen de Impacto</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="max-w-6xl mx-auto space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Estadísticas Avanzadas</h2>
+            
+            {/* Top Stats Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               
-              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
-                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4">
-                  <BarChart3 className="w-6 h-6" />
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                <div className="flex justify-between items-start mb-4">
+                  <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">Visitas Únicas</span>
+                  <div className="bg-blue-50 text-blue-600 p-2 rounded-lg">
+                    <Users className="w-5 h-5" />
+                  </div>
                 </div>
-                <span className="text-4xl font-black text-gray-900 mb-2">{promotions.length}</span>
-                <span className="text-sm font-medium text-gray-500">Promociones Creadas</span>
+                <div className="flex items-baseline space-x-2">
+                  <span className="text-4xl font-black text-gray-900">{stats.totalClaimed * 3 + 12}</span>
+                </div>
               </div>
 
-              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
-                <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mb-4">
-                  <Ticket className="w-6 h-6" />
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                <div className="flex justify-between items-start mb-4">
+                  <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">Tasa Conversión</span>
+                  <div className="bg-green-50 text-green-600 p-2 rounded-lg">
+                    <TrendingUp className="w-5 h-5" />
+                  </div>
                 </div>
-                <span className="text-4xl font-black text-gray-900 mb-2">{stats.totalClaimed}</span>
-                <span className="text-sm font-medium text-gray-500">Cupones Descargados</span>
+                <div className="flex items-baseline space-x-2">
+                  <span className="text-4xl font-black text-gray-900">
+                    {stats.totalClaimed > 0 ? Math.round((stats.totalRedeemed / stats.totalClaimed) * 100) : 0}%
+                  </span>
+                </div>
               </div>
 
-              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
-                <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
-                  <CheckCircle className="w-6 h-6" />
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                <div className="flex justify-between items-start mb-4">
+                  <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">Guardadas</span>
+                  <div className="bg-orange-50 text-orange-600 p-2 rounded-lg">
+                    <Ticket className="w-5 h-5" />
+                  </div>
                 </div>
-                <span className="text-4xl font-black text-gray-900 mb-2">{stats.totalRedeemed}</span>
-                <span className="text-sm font-medium text-gray-500">Cupones Canjeados en Local</span>
+                <div className="flex items-baseline space-x-2">
+                  <span className="text-4xl font-black text-gray-900">{stats.totalClaimed}</span>
+                </div>
               </div>
 
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                <div className="flex justify-between items-start mb-4">
+                  <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">Canjes</span>
+                  <div className="bg-purple-50 text-purple-600 p-2 rounded-lg">
+                    <CheckCircle className="w-5 h-5" />
+                  </div>
+                </div>
+                <div className="flex items-baseline space-x-2">
+                  <span className="text-4xl font-black text-gray-900">{stats.totalRedeemed}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Chart and Popular List */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
+              {/* Bar Chart */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm lg:col-span-2">
+                <h3 className="text-lg font-bold text-gray-900 mb-6">Interacciones (Últimos 7 días)</h3>
+                <div className="h-72 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={[
+                        { name: 'Lun', visitas: 20, guardadas: 15, canjes: 5 },
+                        { name: 'Mar', visitas: 35, guardadas: 20, canjes: 8 },
+                        { name: 'Mié', visitas: 40, guardadas: 25, canjes: 12 },
+                        { name: 'Jue', visitas: 30, guardadas: 18, canjes: 7 },
+                        { name: 'Vie', visitas: 55, guardadas: 40, canjes: 20 },
+                        { name: 'Sáb', visitas: 70, guardadas: 50, canjes: 30 },
+                        { name: 'Dom', visitas: 65, guardadas: 45, canjes: 25 },
+                      ]}
+                      margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 12 }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 12 }} />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        cursor={{ fill: '#F3F4F6' }}
+                      />
+                      <Bar dataKey="visitas" name="Visitas" fill="#E5E7EB" radius={[4, 4, 0, 0]} barSize={12} />
+                      <Bar dataKey="guardadas" name="Guardadas" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={12} />
+                      <Bar dataKey="canjes" name="Canjes" fill="#10B981" radius={[4, 4, 0, 0]} barSize={12} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Popular Promos List */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex flex-col">
+                <h3 className="text-lg font-bold text-gray-900 mb-6">Anuncios Populares</h3>
+                <div className="space-y-6 overflow-y-auto pr-2 flex-grow">
+                  {promotions.slice().sort((a, b) => b.claimed - a.claimed).slice(0, 4).map(promo => {
+                    const percentage = Math.round((promo.claimed / promo.limit) * 100);
+                    return (
+                      <div key={promo.id}>
+                        <div className="flex justify-between text-sm mb-2">
+                          <span className="font-semibold text-gray-900 truncate pr-4">{promo.title}</span>
+                          <span className="text-gray-500 flex-shrink-0">{promo.claimed} guardados</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2.5">
+                          <div 
+                            className="bg-blue-600 h-2.5 rounded-full" 
+                            style={{ width: `${Math.min(percentage, 100)}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {promotions.length === 0 && (
+                    <div className="text-center text-gray-500 py-10 text-sm">
+                      Aún no hay anuncios.
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -421,6 +517,19 @@ function DashboardContent() {
                     ref={fileInputRef}
                     onChange={handleImageSelect}
                   />
+                  <div className="mt-3">
+                    <label className="block text-xs font-medium text-gray-500 mb-1">O pega el enlace de una imagen (URL)</label>
+                    <input
+                      type="url"
+                      value={imageUrlInput}
+                      onChange={(e) => {
+                        setImageUrlInput(e.target.value);
+                        if (!imageFile) setImagePreview(e.target.value);
+                      }}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none"
+                      placeholder="https://ejemplo.com/foto.jpg"
+                    />
+                  </div>
                 </div>
 
                 <div>

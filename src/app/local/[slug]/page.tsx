@@ -24,6 +24,7 @@ interface BusinessProfile {
   id: string;
   businessName: string;
   status: string;
+  logoUrl?: string | null;
 }
 
 export default function BusinessPublicProfile() {
@@ -58,7 +59,8 @@ export default function BusinessPublicProfile() {
         setBusiness({
           id: businessDoc.id,
           businessName: bizData.businessName || "Negocio sin nombre",
-          status: bizData.status || "Activo"
+          status: bizData.status || "Activo",
+          logoUrl: bizData.logoUrl || null
         });
 
         // 2. Si está inactivo, no mostramos promociones
@@ -246,9 +248,17 @@ export default function BusinessPublicProfile() {
         </Link>
 
         <div className="mb-10 text-center md:text-left bg-white p-8 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row items-center justify-between">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-2">{business.businessName}</h1>
-            <p className="text-gray-500 font-medium text-lg">Promociones exclusivas y cupones</p>
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
+            {business.logoUrl && (
+              <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-sm flex-shrink-0 bg-gray-50">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={business.logoUrl} alt={business.businessName} className="w-full h-full object-cover" />
+              </div>
+            )}
+            <div>
+              <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-2">{business.businessName}</h1>
+              <p className="text-gray-500 font-medium text-lg">Promociones exclusivas y cupones</p>
+            </div>
           </div>
           <div className="mt-6 md:mt-0 bg-blue-50 text-blue-700 px-4 py-2 rounded-lg font-bold text-lg border border-blue-100">
             {promotions.length} {promotions.length === 1 ? 'oferta disponible' : 'ofertas disponibles'}
