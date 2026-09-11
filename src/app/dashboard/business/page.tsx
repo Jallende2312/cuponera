@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { collection, query, where, getDocs, addDoc, updateDoc, doc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "@/lib/firebase/config";
+import { db } from "@/lib/firebase/config";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter } from "next/navigation";
 import { Plus, Edit2, ArrowLeft, X, Image as ImageIcon, Loader2 } from "lucide-react";
@@ -94,11 +93,22 @@ export default function BusinessDashboard() {
   };
 
   const uploadImage = async (file: File): Promise<string> => {
-    if (!user) throw new Error("No user");
-    const timestamp = Date.now();
-    const storageRef = ref(storage, `promotions/${user.uid}/${timestamp}_${file.name}`);
-    await uploadBytes(storageRef, file);
-    return await getDownloadURL(storageRef);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "");
+    
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+      method: "POST",
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      throw new Error("Error uploading to Cloudinary");
+    }
+    
+    const data = await response.json();
+    return data.secure_url;
   };
 
   const handleSavePromotion = async (e: React.FormEvent) => {
