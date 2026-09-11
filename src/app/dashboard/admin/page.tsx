@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { collection, getDocs, query, where, doc, setDoc, updateDoc } from "firebase/firestore";
 import { db, auth, firebaseConfig } from "@/lib/firebase/config";
 import { initializeApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
+import { getAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter } from "next/navigation";
-import { Shield, Plus, Link as LinkIcon, Trash2, Calendar, Search, X } from "lucide-react";
+import { Shield, Plus, Link as LinkIcon, Trash2, Calendar, Search, X, Key } from "lucide-react";
 
 interface BusinessUser {
   id: string;
@@ -141,6 +141,18 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error("Error updating", error);
       alert("Error al actualizar");
+    }
+  };
+
+  const handleResetPassword = async (email: string) => {
+    if (!confirm(`¿Estás seguro de enviar un correo de recuperación a ${email}?`)) return;
+    
+    try {
+      await sendPasswordResetEmail(auth, email);
+      alert(`Correo de recuperación enviado a ${email}. Revisa la bandeja de entrada o spam.`);
+    } catch (error: any) {
+      console.error("Error resetting password", error);
+      alert("Error al enviar correo: " + error.message);
     }
   };
 
@@ -334,7 +346,14 @@ export default function AdminDashboard() {
                         >
                           Entrar al Panel
                         </button>
-                        <button className="text-gray-400 hover:text-red-500 p-1.5 transition-colors">
+                        <button 
+                          onClick={() => handleResetPassword(biz.email)}
+                          className="text-gray-400 hover:text-blue-500 p-1.5 transition-colors"
+                          title="Restablecer Contraseña"
+                        >
+                          <Key className="w-4 h-4" />
+                        </button>
+                        <button className="text-gray-400 hover:text-red-500 p-1.5 transition-colors" title="Eliminar Cuponera">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
