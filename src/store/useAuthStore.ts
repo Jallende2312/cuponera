@@ -3,10 +3,10 @@ import { User } from 'firebase/auth';
 
 interface AuthState {
   user: User | null;
-  role: 'customer' | 'business' | 'cashier' | null;
+  role: 'customer' | 'business' | 'cashier' | 'admin' | null;
   loading: boolean;
   setUser: (user: User | null) => void;
-  setRole: (role: 'customer' | 'business' | 'cashier' | null) => void;
+  setRole: (role: 'customer' | 'business' | 'cashier' | 'admin' | null) => void;
   setLoading: (loading: boolean) => void;
 }
 
