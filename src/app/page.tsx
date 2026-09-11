@@ -7,7 +7,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter } from "next/navigation";
 import { Tag, LogOut, LayoutDashboard, Wallet, ScanLine } from "lucide-react";
 import { auth } from "@/lib/firebase/config";
-import { signOut } from "firebase/auth";
+import { signOut, signInAnonymously } from "firebase/auth";
 
 interface Promotion {
   id: string;
@@ -47,12 +47,22 @@ export default function Home() {
   }, []);
 
   const handleClaim = async (promo: Promotion) => {
+    let currentUid = user?.uid;
+    let currentRole = role;
+
     if (!user) {
-      router.push("/login");
-      return;
+      try {
+        const userCred = await signInAnonymously(auth);
+        currentUid = userCred.user.uid;
+        currentRole = "customer";
+      } catch (err) {
+        console.error("Error with anonymous auth:", err);
+        alert("Error de autenticación. Intenta de nuevo.");
+        return;
+      }
     }
 
-    if (role !== "customer") {
+    if (currentRole !== "customer") {
       alert("Solo los clientes pueden reclamar cupones.");
       return;
     }
@@ -69,7 +79,7 @@ export default function Home() {
       // Save the coupon
       await setDoc(doc(db, "coupons", couponCode), {
         promotionId: promo.id,
-        userId: user.uid,
+        userId: currentUid,
         code: couponCode,
         status: "active",
         claimedAt: new Date().toISOString()
@@ -132,9 +142,11 @@ export default function Home() {
                     <ScanLine className="w-5 h-5" />
                   </button>
                 )}
-                <button onClick={handleSignOut} className="p-2 text-red-600 hover:bg-red-50 rounded-full" title="Cerrar Sesión">
-                  <LogOut className="w-5 h-5" />
-                </button>
+                {!user.isAnonymous && (
+                  <button onClick={handleSignOut} className="p-2 text-red-600 hover:bg-red-50 rounded-full" title="Cerrar Sesión">
+                    <LogOut className="w-5 h-5" />
+                  </button>
+                )}
               </div>
             )}
           </div>
