@@ -262,13 +262,22 @@ function DashboardContent() {
                 Estadísticas
               </button>
             </div>
-            <div className="flex items-center">
+            <div className="flex items-center space-x-3">
               <button
                 onClick={() => setShowQrModal(true)}
                 className="flex items-center text-sm font-medium text-blue-600 bg-blue-50 px-3 py-2 rounded-lg hover:bg-blue-100 transition-colors"
               >
                 <QrCode className="w-4 h-4 mr-2" />
                 Mi QR
+              </button>
+              <button
+                onClick={() => {
+                  auth.signOut();
+                  router.push("/");
+                }}
+                className="text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg font-medium transition-colors text-sm"
+              >
+                Salir
               </button>
             </div>
           </div>

@@ -151,8 +151,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      {/* Header */}
-      <div className="bg-[#0f172a] text-white py-6 px-6 sm:px-10 rounded-b-3xl shadow-lg mx-4 sm:mx-10 mt-4 flex flex-col sm:flex-row justify-between items-center">
+      <div className="bg-[#0f172a] text-white py-6 px-6 sm:px-10 rounded-b-3xl shadow-lg mx-4 sm:mx-10 mt-4 flex flex-col sm:flex-row justify-between items-center relative">
         <div className="flex items-center mb-4 sm:mb-0">
           <div className="bg-blue-500 p-3 rounded-full mr-4">
             <Shield className="w-6 h-6 text-white" />
@@ -163,13 +162,25 @@ export default function AdminDashboard() {
           </div>
         </div>
         
-        <button 
-          onClick={() => setShowModal(true)}
-          className="bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 px-6 rounded-full flex items-center transition-colors"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Nueva Cuponera
-        </button>
+        <div className="flex items-center space-x-3">
+          <button 
+            onClick={() => setShowModal(true)}
+            className="bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 px-6 rounded-full flex items-center transition-colors"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Nueva Cuponera
+          </button>
+          
+          <button 
+            onClick={() => {
+              auth.signOut();
+              router.push("/");
+            }}
+            className="bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-4 rounded-full flex items-center transition-colors text-sm"
+          >
+            Salir
+          </button>
+        </div>
       </div>
 
       {/* MODAL NUEVA AGENCIA */}
