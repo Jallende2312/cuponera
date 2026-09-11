@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase/config";
 import { useRouter } from "next/navigation";
 import { LogIn } from "lucide-react";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -12,6 +13,13 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { user, role, loading: authLoading } = useAuthStore();
+
+  useEffect(() => {
+    if (!authLoading && user && role) {
+      router.push(`/dashboard/${role}`);
+    }
+  }, [user, role, authLoading, router]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,15 +28,16 @@ export default function LoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // Role is fetched by AuthProvider
-      
-      router.push("/");
+      // Wait for AuthProvider to set the role and trigger useEffect
     } catch (err: any) {
       setError(err.message || "Authentication failed");
-    } finally {
       setLoading(false);
     }
   };
+
+  if (authLoading || (user && role)) {
+    return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">

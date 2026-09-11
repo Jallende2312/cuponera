@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, Suspense } from "react";
 import { collection, query, where, getDocs, getDoc, addDoc, updateDoc, doc } from "firebase/firestore";
-import { db } from "@/lib/firebase/config";
+import { db, auth } from "@/lib/firebase/config";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Edit2, ArrowLeft, X, Image as ImageIcon, Loader2, Share2, BarChart3, Ticket, CheckCircle, QrCode, TrendingUp, Users } from "lucide-react";
