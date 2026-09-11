@@ -5,7 +5,7 @@ import { collection, query, where, getDocs, addDoc, updateDoc, doc } from "fireb
 import { db } from "@/lib/firebase/config";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter } from "next/navigation";
-import { Plus, Edit2, ArrowLeft, X, Image as ImageIcon, Loader2 } from "lucide-react";
+import { Plus, Edit2, ArrowLeft, X, Image as ImageIcon, Loader2, Share2, BarChart3, Ticket, CheckCircle } from "lucide-react";
 
 interface Promotion {
   id: string;
@@ -13,6 +13,7 @@ interface Promotion {
   description: string;
   limit: number;
   claimed: number;
+  redeemed?: number; // Added to track redeemed, though we'll calculate it from coupons
   active: boolean;
   imageUrl?: string;
 }
@@ -20,7 +21,12 @@ interface Promotion {
 export default function BusinessDashboard() {
   const { user, role, loading } = useAuthStore();
   const router = useRouter();
+  
+  const [activeTab, setActiveTab] = useState<"vitrina" | "estadisticas">("vitrina");
+  
   const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [stats, setStats] = useState({ totalClaimed: 0, totalRedeemed: 0 });
+  
   const [showModal, setShowModal] = useState(false);
   const [editingPromo, setEditingPromo] = useState<Promotion | null>(null);
   
@@ -40,23 +46,37 @@ export default function BusinessDashboard() {
       } else if (role !== "business") {
         router.push("/");
       } else {
-        fetchPromotions();
+        fetchPromotionsAndStats();
       }
     }
   }, [user, role, loading, router]);
 
-  const fetchPromotions = async () => {
+  const fetchPromotionsAndStats = async () => {
     if (!user) return;
     try {
       const q = query(collection(db, "promotions"), where("businessId", "==", user.uid));
       const querySnapshot = await getDocs(q);
       const promos: Promotion[] = [];
-      querySnapshot.forEach((doc) => {
-        promos.push({ id: doc.id, ...doc.data() } as Promotion);
-      });
+      
+      let claimedCount = 0;
+      let redeemedCount = 0;
+      
+      for (const document of querySnapshot.docs) {
+        const promoData = document.data() as Promotion;
+        promos.push({ ...promoData, id: document.id });
+        
+        claimedCount += promoData.claimed || 0;
+        
+        // Fetch redeemed coupons for this promotion to calculate true stats
+        const couponsQ = query(collection(db, "coupons"), where("promotionId", "==", document.id), where("status", "==", "redeemed"));
+        const couponsSnap = await getDocs(couponsQ);
+        redeemedCount += couponsSnap.size;
+      }
+      
       setPromotions(promos);
+      setStats({ totalClaimed: claimedCount, totalRedeemed: redeemedCount });
     } catch (error) {
-      console.error("Error fetching promotions:", error);
+      console.error("Error fetching data:", error);
     }
   };
 
@@ -95,7 +115,6 @@ export default function BusinessDashboard() {
   const uploadImage = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append("file", file);
-    // Usamos el preset y cloud name públicos directamente para evitar configuración manual en Vercel
     formData.append("upload_preset", "vitrinas_public");
     
     const cloudName = "n3pool8h";
@@ -120,13 +139,11 @@ export default function BusinessDashboard() {
     try {
       let finalImageUrl = editingPromo?.imageUrl || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"; // Default image
       
-      // If a new physical file was selected, upload it
       if (imageFile) {
         finalImageUrl = await uploadImage(imageFile);
       }
 
       if (editingPromo) {
-        // Update existing
         await updateDoc(doc(db, "promotions", editingPromo.id), {
           title,
           description,
@@ -134,7 +151,6 @@ export default function BusinessDashboard() {
           imageUrl: finalImageUrl,
         });
       } else {
-        // Create new
         await addDoc(collection(db, "promotions"), {
           businessId: user.uid,
           title,
@@ -148,24 +164,42 @@ export default function BusinessDashboard() {
       }
       
       setShowModal(false);
-      fetchPromotions();
+      fetchPromotionsAndStats();
     } catch (error) {
       console.error("Error saving promotion:", error);
-      alert("Error al guardar la promoción. Asegúrate de tener permisos de escritura en Storage.");
+      alert("Error al guardar la promoción.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const toggleStatus = async (promoId: string, currentStatus: boolean, e: React.MouseEvent) => {
-    e.stopPropagation(); // Evitar abrir el modal al hacer clic en activar/desactivar
+    e.stopPropagation();
     try {
       await updateDoc(doc(db, "promotions", promoId), {
         active: !currentStatus
       });
-      fetchPromotions();
+      fetchPromotionsAndStats();
     } catch (error) {
       console.error("Error toggling status:", error);
+    }
+  };
+
+  const handleShare = (e: React.MouseEvent, promo: Promotion) => {
+    e.stopPropagation();
+    // In the future we can point to `/promo/${promo.id}`, but for MVP we share the root
+    const shareUrl = window.location.origin;
+    const shareText = `¡Aprovecha esta promoción: ${promo.title}! Ven y guarda tu cupón antes de que se acaben.`;
+
+    if (navigator.share) {
+      navigator.share({
+        title: promo.title,
+        text: shareText,
+        url: shareUrl
+      }).catch(err => console.error("Error sharing:", err));
+    } else {
+      navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
+      alert("¡Enlace copiado al portapapeles!");
     }
   };
 
@@ -173,9 +207,6 @@ export default function BusinessDashboard() {
     return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
   }
 
-  // Lógica de grilla (ej. Vitrinas Digitales tiene "espacios")
-  // Podemos mostrar las promociones existentes y luego llenar con placeholders hasta un máximo,
-  // o simplemente mostrar una cuadrícula responsiva. Aquí usamos una cuadrícula estándar responsiva.
   const emptySlots = Math.max(0, 6 - promotions.length);
 
   return (
@@ -194,89 +225,138 @@ export default function BusinessDashboard() {
               </button>
             </div>
             <div className="flex items-center space-x-8">
-              <span className="text-blue-600 font-bold border-b-2 border-blue-600 px-1 py-5">
+              <button
+                onClick={() => setActiveTab("vitrina")}
+                className={`font-bold px-1 py-5 border-b-2 transition-colors ${
+                  activeTab === "vitrina" ? "text-blue-600 border-blue-600" : "text-gray-500 border-transparent hover:text-gray-700"
+                }`}
+              >
                 Mi Vitrina
-              </span>
-              <span className="text-gray-500 font-medium px-1 py-5 hover:text-gray-700 cursor-pointer">
+              </button>
+              <button
+                onClick={() => setActiveTab("estadisticas")}
+                className={`font-bold px-1 py-5 border-b-2 transition-colors ${
+                  activeTab === "estadisticas" ? "text-blue-600 border-blue-600" : "text-gray-500 border-transparent hover:text-gray-700"
+                }`}
+              >
                 Estadísticas
-              </span>
+              </button>
             </div>
-            <div className="flex items-center w-20"></div> {/* Spacer to center navbar links */}
+            <div className="flex items-center w-20"></div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <p className="text-gray-500 mb-6">Tienes {Math.max(0, 6 - promotions.length)} espacios disponibles en tu plan.</p>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          
-          {/* Tarjetas de Promociones Existentes */}
-          {promotions.map((promo) => (
-            <div 
-              key={promo.id} 
-              className="relative rounded-2xl overflow-hidden aspect-[4/5] group shadow-sm hover:shadow-md transition-shadow bg-gray-100"
-            >
-              {/* Imagen de fondo */}
-              <img 
-                src={promo.imageUrl || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c"} 
-                alt={promo.title}
-                className={`absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${!promo.active && 'grayscale opacity-80'}`}
-              />
-              
-              {/* Gradiente Oscuro inferior */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-              
-              {/* Botón Editar esquina superior */}
-              <button 
-                onClick={() => openEditPromoModal(promo)}
-                className="absolute top-4 right-4 bg-white/90 hover:bg-white text-gray-700 p-2 rounded-full shadow-sm z-10 transition-colors"
-              >
-                <Edit2 className="w-4 h-4" />
-              </button>
-              
-              {/* Contenido inferior */}
-              <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
-                <h3 className="font-bold text-xl mb-1 line-clamp-1">{promo.title}</h3>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-200">
-                    Disponibles: {promo.limit - promo.claimed} / {promo.limit}
-                  </span>
+        {activeTab === "vitrina" ? (
+          <>
+            <p className="text-gray-500 mb-6">Tienes {Math.max(0, 6 - promotions.length)} espacios disponibles en tu plan.</p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+              {promotions.map((promo) => (
+                <div 
+                  key={promo.id} 
+                  className="relative rounded-2xl overflow-hidden aspect-[4/5] group shadow-sm hover:shadow-md transition-shadow bg-gray-100"
+                >
+                  <img 
+                    src={promo.imageUrl || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c"} 
+                    alt={promo.title}
+                    className={`absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${!promo.active && 'grayscale opacity-80'}`}
+                  />
                   
-                  <button
-                    onClick={(e) => toggleStatus(promo.id, promo.active, e)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium backdrop-blur-sm border ${
-                      promo.active 
-                        ? "bg-green-500/20 border-green-400 text-green-100 hover:bg-green-500/40" 
-                        : "bg-red-500/20 border-red-400 text-red-100 hover:bg-red-500/40"
-                    }`}
-                  >
-                    {promo.active ? "Activa" : "Pausada"}
-                  </button>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                  
+                  <div className="absolute top-4 right-4 flex space-x-2 z-10">
+                    <button 
+                      onClick={(e) => handleShare(e, promo)}
+                      className="bg-white/90 hover:bg-white text-gray-700 p-2 rounded-full shadow-sm transition-colors"
+                      title="Compartir"
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => openEditPromoModal(promo)}
+                      className="bg-white/90 hover:bg-white text-gray-700 p-2 rounded-full shadow-sm transition-colors"
+                      title="Editar"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
+                    <h3 className="font-bold text-xl mb-1 line-clamp-1">{promo.title}</h3>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-200">
+                        Disponibles: {promo.limit - promo.claimed} / {promo.limit}
+                      </span>
+                      
+                      <button
+                        onClick={(e) => toggleStatus(promo.id, promo.active, e)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium backdrop-blur-sm border ${
+                          promo.active 
+                            ? "bg-green-500/20 border-green-400 text-green-100 hover:bg-green-500/40" 
+                            : "bg-red-500/20 border-red-400 text-red-100 hover:bg-red-500/40"
+                        }`}
+                      >
+                        {promo.active ? "Activa" : "Pausada"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          ))}
+              ))}
 
-          {/* Tarjetas "Agregar" Vacías */}
-          {Array.from({ length: emptySlots }).map((_, idx) => (
-            <div 
-              key={`empty-${idx}`} 
-              onClick={openNewPromoModal}
-              className="rounded-2xl border-2 border-dashed border-gray-300 aspect-[4/5] flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors group"
-            >
-              <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-3 group-hover:bg-blue-200 transition-colors">
-                <Plus className="w-6 h-6" />
-              </div>
-              <span className="text-gray-500 font-medium">Espacio {promotions.length + idx + 1}</span>
-              <span className="text-gray-400 text-sm">Toca para agregar</span>
+              {Array.from({ length: emptySlots }).map((_, idx) => (
+                <div 
+                  key={`empty-${idx}`} 
+                  onClick={openNewPromoModal}
+                  className="rounded-2xl border-2 border-dashed border-gray-300 aspect-[4/5] flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors group"
+                >
+                  <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-3 group-hover:bg-blue-200 transition-colors">
+                    <Plus className="w-6 h-6" />
+                  </div>
+                  <span className="text-gray-500 font-medium">Espacio {promotions.length + idx + 1}</span>
+                  <span className="text-gray-400 text-sm">Toca para agregar</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </>
+        ) : (
+          <div className="max-w-4xl mx-auto space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Resumen de Impacto</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
+                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4">
+                  <BarChart3 className="w-6 h-6" />
+                </div>
+                <span className="text-4xl font-black text-gray-900 mb-2">{promotions.length}</span>
+                <span className="text-sm font-medium text-gray-500">Promociones Creadas</span>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
+                <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mb-4">
+                  <Ticket className="w-6 h-6" />
+                </div>
+                <span className="text-4xl font-black text-gray-900 mb-2">{stats.totalClaimed}</span>
+                <span className="text-sm font-medium text-gray-500">Cupones Descargados</span>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
+                <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
+                  <CheckCircle className="w-6 h-6" />
+                </div>
+                <span className="text-4xl font-black text-gray-900 mb-2">{stats.totalRedeemed}</span>
+                <span className="text-sm font-medium text-gray-500">Cupones Canjeados en Local</span>
+              </div>
+
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Modal de Creación / Edición */}
+      {/* Modal ... (resto del código del modal) */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
@@ -290,7 +370,6 @@ export default function BusinessDashboard() {
             <div className="p-5 overflow-y-auto">
               <form id="promoForm" onSubmit={handleSavePromotion} className="space-y-5">
                 
-                {/* Zona de imagen */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Foto de la Promoción</label>
                   <div 
