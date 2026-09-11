@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { collection, getDocs, query, where, doc, setDoc, updateDoc } from "firebase/firestore";
-import { db, auth } from "@/lib/firebase/config";
+import { db, auth, firebaseConfig } from "@/lib/firebase/config";
+import { initializeApp } from "firebase/app";
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter } from "next/navigation";
-import { Shield, Plus, Link as LinkIcon, Trash2, Calendar, Search } from "lucide-react";
+import { Shield, Plus, Link as LinkIcon, Trash2, Calendar, Search, X } from "lucide-react";
 
 interface BusinessUser {
   id: string;
@@ -24,6 +26,17 @@ export default function AdminDashboard() {
   const [businesses, setBusinesses] = useState<BusinessUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  
+  // New Agency Modal State
+  const [showModal, setShowModal] = useState(false);
+  const [newAgency, setNewAgency] = useState({
+    businessName: "",
+    slug: "",
+    email: "",
+    password: "",
+    pin: ""
+  });
+  const [creating, setCreating] = useState(false);
 
   const fetchBusinesses = async () => {
     try {
@@ -52,6 +65,43 @@ export default function AdminDashboard() {
   const handleImpersonate = async (businessId: string) => {
     alert("¡Entrando al panel en Modo Dios!");
     console.log("Impersonate", businessId);
+  };
+
+  const handleCreateAgency = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreating(true);
+    try {
+      // Create a secondary app to create a user without logging out the admin
+      const secondaryApp = initializeApp(firebaseConfig, "Secondary");
+      const secondaryAuth = getAuth(secondaryApp);
+      
+      const userCred = await createUserWithEmailAndPassword(secondaryAuth, newAgency.email, newAgency.password);
+      const newUid = userCred.user.uid;
+      
+      await secondaryAuth.signOut();
+      
+      const newBizData = {
+        email: newAgency.email,
+        role: "business",
+        businessName: newAgency.businessName,
+        slug: newAgency.slug,
+        pin: newAgency.pin,
+        status: "Activo",
+        createdAt: new Date().toISOString()
+      };
+      
+      await setDoc(doc(db, "users", newUid), newBizData);
+      
+      setBusinesses([{ id: newUid, ...newBizData } as BusinessUser, ...businesses]);
+      setShowModal(false);
+      setNewAgency({ businessName: "", slug: "", email: "", password: "", pin: "" });
+      alert("¡Agencia creada con éxito!");
+    } catch (error: any) {
+      console.error("Error creating agency", error);
+      alert("Error: " + error.message);
+    } finally {
+      setCreating(false);
+    }
   };
 
   if (authLoading || loading) {
@@ -112,11 +162,86 @@ export default function AdminDashboard() {
           </div>
         </div>
         
-        <button className="bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 px-6 rounded-full flex items-center transition-colors">
+        <button 
+          onClick={() => setShowModal(true)}
+          className="bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 px-6 rounded-full flex items-center transition-colors"
+        >
           <Plus className="w-5 h-5 mr-2" />
-          Nueva Agencia
+          Nueva Cuponera
         </button>
       </div>
+
+      {/* MODAL NUEVA AGENCIA */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 sm:p-8 shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Crear Nueva Cuponera</h2>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateAgency} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Negocio</label>
+                <input 
+                  type="text" required 
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  value={newAgency.businessName} onChange={e => setNewAgency({...newAgency, businessName: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Enlace Personalizado (slug)</label>
+                <div className="flex items-center">
+                  <span className="bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg px-3 py-2 text-gray-500 text-sm">/local/</span>
+                  <input 
+                    type="text" required 
+                    className="w-full px-4 py-2 border rounded-r-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="smash-burgers"
+                    value={newAgency.slug} onChange={e => setNewAgency({...newAgency, slug: e.target.value.toLowerCase().replace(/\s+/g, '-')})}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
+                  <input 
+                    type="email" required 
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    value={newAgency.email} onChange={e => setNewAgency({...newAgency, email: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña temporal</label>
+                  <input 
+                    type="text" required minLength={6}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    value={newAgency.password} onChange={e => setNewAgency({...newAgency, password: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">PIN (4 dígitos)</label>
+                <input 
+                  type="text" required maxLength={4} minLength={4} pattern="\d*"
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="Ej: 4679"
+                  value={newAgency.pin} onChange={e => setNewAgency({...newAgency, pin: e.target.value})}
+                />
+              </div>
+              
+              <button
+                type="submit"
+                disabled={creating}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50 mt-6"
+              >
+                {creating ? "Creando..." : "Crear Agencia"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-6xl mx-auto px-4 mt-8">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

@@ -3,7 +3,7 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyBeL4LvDJZijAXw7k33F99T-LwS9_poiyo",
   authDomain: "cuponera-o2o.firebaseapp.com",
   projectId: "cuponera-o2o",
